@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 AerynOS Developers
+# SPDX-License-Identifier: MPL-2.0
+
+name        : hello
+version     : "2.12.1"
+release     : 1
+arch        : aarch64
+homepage    : https://ftp.gnu.org/gnu/hello
+upstreams   :
+    - https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz : 8d99142afd92576f30b0cd7cb42a8dc6809998bc5d607d88761f512e26c7db20
+summary     : My hello test for aarch64
+description : |
+    This is a hello try to build for aarch64.
+license     : 
+    - GPL-3.0-or-later
+setup       : |
+    %configure
+build       : |
+    %make
+install     : |
+    %make_install

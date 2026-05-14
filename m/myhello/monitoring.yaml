@@ -1,0 +1,13 @@
+releases:
+  id: 18057
+  rss: ~
+security:
+  cpe:
+  - vendor: cozythemes
+    product: hello_agency
+  - vendor: kau-boys
+    product: hello_world
+  - vendor: sanriodigital
+    product: hello_kitty_cafe
+  - vendor: 7-eleven
+    product: hello_cup
