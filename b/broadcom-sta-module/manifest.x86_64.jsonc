@@ -1,0 +1,86 @@
+/** Human readable report. This is not consumed by boulder */
+{
+	"manifest-version": "0.2",
+	"packages": {
+		"broadcom-sta-module": {
+			"build-depends": [
+				"binary(eu-readelf)",
+				"binary(patch)",
+				"binary(wget)",
+				"binary(zstd)",
+				"linux-gaming-devel",
+				"linux-lts-devel",
+				"linux-stable-devel"
+			],
+			"files": [
+				"/usr/lib/modprobe.d/broadcom-wl.conf",
+				"/usr/lib/modules-load.d/wl.conf",
+				"/usr/share/licenses/broadcom-sta-module/LICENSE.txt"
+			],
+			"name": "broadcom-sta-module"
+		},
+		"broadcom-sta-module-gaming": {
+			"build-depends": [
+				"binary(eu-readelf)",
+				"binary(patch)",
+				"binary(wget)",
+				"binary(zstd)",
+				"linux-gaming-devel",
+				"linux-lts-devel",
+				"linux-stable-devel"
+			],
+			"depends": [
+				"broadcom-sta-module",
+				"linux-gaming",
+				"sysbinary(depmod)"
+			],
+			"files": [
+				"/usr/lib/modules/7.1.6-24.gaming/extra/drivers/net/wireless/wl.ko.zst"
+			],
+			"name": "broadcom-sta-module-gaming"
+		},
+		"broadcom-sta-module-lts": {
+			"build-depends": [
+				"binary(eu-readelf)",
+				"binary(patch)",
+				"binary(wget)",
+				"binary(zstd)",
+				"linux-gaming-devel",
+				"linux-lts-devel",
+				"linux-stable-devel"
+			],
+			"depends": [
+				"broadcom-sta-module",
+				"linux-lts",
+				"sysbinary(depmod)"
+			],
+			"files": [
+				"/usr/lib/modules/6.18.42-23.lts/extra/drivers/net/wireless/wl.ko.zst"
+			],
+			"name": "broadcom-sta-module-lts"
+		},
+		"broadcom-sta-module-stable": {
+			"build-depends": [
+				"binary(eu-readelf)",
+				"binary(patch)",
+				"binary(wget)",
+				"binary(zstd)",
+				"linux-gaming-devel",
+				"linux-lts-devel",
+				"linux-stable-devel"
+			],
+			"depends": [
+				"broadcom-sta-module",
+				"linux-stable",
+				"sysbinary(depmod)"
+			],
+			"files": [
+				"/usr/lib/modules/7.1.6-47.stable/extra/drivers/net/wireless/wl.ko.zst"
+			],
+			"name": "broadcom-sta-module-stable"
+		}
+	},
+	"source-name": "broadcom-sta-module",
+	"source-release": "1",
+	"source-version": "6.30.223.271"
+}

@@ -1,0 +1,152 @@
+# SPDX-FileCopyrightText: 2026 AerynOS Developers
+# SPDX-License-Identifier: MPL-2.0
+
+name        : broadcom-sta-module
+version     : "6.30.223.271"
+release     : 1
+homepage    : https://www.broadcom.com/support/download-search?pf=Wireless+LAN+Infrastructure
+upstreams   :
+  - https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/hybrid-v35_64-nodebug-pcoem-6_30_223_271.tar.gz:
+        hash: 5f79774d5beec8f7636b59c0fb07a03108eef1e3fd3245638b20858c714144be
+        unpack: false
+        rename: broadcom-sta.tar.gz
+summary     : Broadcom BCM4360 wireless driver (e.g. MacBook Pro 2013)
+description : |
+    Proprietary Broadcom 802.11ac wireless driver for the BCM4360 chipset,
+    used in MacBook Pro Retina (Late 2013) models.
+license     : GPL-3.0-or-later
+builddeps   :
+    - binary(eu-readelf)
+    - binary(patch)
+    - binary(wget)
+    - binary(zstd)
+    - linux-gaming-devel
+    - linux-lts-devel
+    - linux-stable-devel
+networking     : true
+environment : |
+    # Create list of kernels to build for
+    declare -a kernels=()
+    for dir in %(libdir)/kernel/*/; do
+        dir=${dir%*/}
+        kernels+=(${dir##*/})
+    done
+setup       : |
+    # ---------- download patches from Solus ----------
+    SOLUS_PATCH_DIR="%(sourcedir)/solus-patches"
+    mkdir -p "$SOLUS_PATCH_DIR"
+    pushd "$SOLUS_PATCH_DIR"
+
+    echo "Downloading series file from Solus..."
+    wget -q https://raw.githubusercontent.com/getsolus/packages/main/packages/b/broadcom-sta/files/series -O series
+
+    echo "Downloading all patches listed in series..."
+    while IFS= read -r patch_entry; do
+        [[ -z "$patch_entry" || "$patch_entry" =~ ^# ]] && continue
+        mkdir -p "$(dirname "$patch_entry")"
+        wget -q "https://raw.githubusercontent.com/getsolus/packages/main/packages/b/broadcom-sta/files/$patch_entry" -O "$patch_entry"
+    done < series
+    popd
+
+    # ---------- for each kernel prepare source ----------
+    for _kernel in ${kernels[@]}; do
+        mkdir ${_kernel}
+        bsdtar-static -xf %(sourcedir)/broadcom-sta.tar.gz -C ${_kernel}
+        pushd ${_kernel}
+
+        # apply patches in order of series
+        while IFS= read -r patch_entry; do
+            [[ -z "$patch_entry" || "$patch_entry" =~ ^# ]] && continue
+            patch_file="$SOLUS_PATCH_DIR/$patch_entry"
+            if [[ -f "$patch_file" ]]; then
+                echo "Applying $patch_entry..."
+                %patch "$patch_file"
+            else
+                echo "Error: patch file $patch_file not found"
+                exit 1
+            fi
+        done < "$SOLUS_PATCH_DIR/series"
+
+        # modify interface name ：eth -> wlan
+        sed -i -e '/BRCM_WLAN_IFNAME/s/eth/wlan/' src/wl/sys/wl_linux.c
+        # disable __DATE__/__TIME__ warning
+        echo 'ccflags-y += -Wno-date-time' >> Makefile
+
+        popd
+    done
+build       : |
+    for _kernel in ${kernels[@]}; do
+        pushd ${_kernel}
+        %ccache_zero
+        export CCACHE_BASEDIR="${PWD}"
+        %make LLVM=1 KBUILD_NOPEDANTIC=1 -C "%(libdir)/modules/${_kernel}/build" M="${PWD}"
+        %ccache_stats
+        popd
+    done
+install     : |
+    for _kernel in ${kernels[@]}; do
+        pushd ${_kernel}
+        %install_file wl.ko -t %(installroot)%(libdir)/modules/${_kernel}/extra/drivers/net/wireless/
+
+        %install_dir %(installroot)%(libdir)/debug/.build-id
+        pushd %(installroot)%(libdir)/modules/${_kernel}
+        module_list=()
+        while IFS=  read -r -d $'\0'; do
+            module_list+=("$REPLY")
+        done < <(find . -type f -name "*.ko" -print0)
+        for module in "${module_list[@]}"; do
+            build_id=$(eu-readelf -n ${module} | awk '/Bui/ {print $3}')
+            debug_path="%(libdir)/debug/.build-id/${build_id:0:2}/${build_id: 2}.debug"
+            pushd $(dirname ${module})
+            file=$(basename ${module})
+            llvm-objcopy --only-keep-debug "${file}" "${file}.debug"
+            llvm-objcopy --add-gnu-debuglink "${file}.debug" "${file}"
+            llvm-strip -g --strip-unneeded "${file}"
+            %install_file "${file}.debug" "%(installroot)/${debug_path}"
+            rm -v "${file}.debug"
+            popd
+        done
+        popd
+
+        find "%(installroot)%(libdir)/modules/${_kernel}/" -name '*.ko' -print -exec zstd {} \; -exec rm -v {} \;
+
+        popd
+    done
+
+    # install modprobe and modules-load conf
+    %install_file %(pkgdir)/broadcom-wl.conf -t %(installroot)/usr/lib/modprobe.d/
+    %install_file %(pkgdir)/wl.conf -t %(installroot)/usr/lib/modules-load.d/
+    %install_file ${kernels[0]}/lib/LICENSE.txt -t %(installroot)/usr/share/licenses/%(name)/
+packages    :
+    - "%(name)-gaming":
+        summary: "%(name) built for gaming kernel"
+        description: "%(name) built for gaming kernel"
+        rundeps:
+            - sysbinary(depmod)
+            - linux-gaming
+            - "%(name)"
+        paths:
+            - /usr/lib/kernel/*.gaming/
+            - /usr/lib/modules/*.gaming/
+
+    - "%(name)-lts":
+        summary: "%(name) built for LTS kernel"
+        description: "%(name) built for LTS kernel"
+        rundeps:
+            - sysbinary(depmod)
+            - linux-lts
+            - "%(name)"
+        paths:
+            - /usr/lib/kernel/*.lts/
+            - /usr/lib/modules/*.lts/
+
+    - "%(name)-stable":
+        summary: "%(name) built for stable kernel"
+        description: "%(name) built for stable kernel"
+        rundeps:
+            - sysbinary(depmod)
+            - linux-stable
+            - "%(name)"
+        paths:
+            - /usr/lib/kernel/*.stable/
+            - /usr/lib/modules/*.stable/
